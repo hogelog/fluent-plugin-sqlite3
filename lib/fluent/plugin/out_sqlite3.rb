@@ -19,17 +19,22 @@ class Fluent::Sqlite3Output < Fluent::BufferedOutput
   def configure(conf)
     super
 
+    raise Fluent::ConfigError, "database missing" unless @database
     raise Fluent::ConfigError, "table missing" unless @table
+    raise Fluent::ConfigError, "columns missing" unless @columns
 
     @columns = "tag VARCHAR(20),time DATETIME,#@columns"
     columns = @columns.split(",")
     keys = columns.map{|column| column.split(" ").first}
     @sql = "INSERT INTO #@table (#{keys.join(",")}) VALUES (#{keys.map{"?"}.join(",")});"
-    @client = SQLite3::Database.new(@database)
-    unless has_table?(@client, @table)
-      sql = "CREATE TABLE #@table (id INTEGER PRIMARY KEY AUTOINCREMENT,#@columns);"
-      @client.execute(sql)
-    end
+    #puts @sql
+    #@client = SQLite3::Database.new(@database)
+    SQLite3::Database.new(@database){|client|
+      unless has_table?(client, @table)
+        sql = "CREATE TABLE #@table (id INTEGER PRIMARY KEY AUTOINCREMENT,#@columns);"
+        client.execute(sql)
+      end
+    }
 
     @format_proc = Proc.new{|tag, time, record|
       keys.map{|key| record[key]}
@@ -48,9 +53,12 @@ class Fluent::Sqlite3Output < Fluent::BufferedOutput
   end
 
   def write(chunk)
-    chunk.msgpack_each do|tag, time, data|
-      @client.execute(@sql, data)
-    end
+    SQLite3::Database.new(@database){|client|
+      chunk.msgpack_each do|tag, time, data|
+        #STDOUT.puts @sql, data
+        client.execute(@sql, data)
+      end
+    }
   end
 
   def start
@@ -58,7 +66,6 @@ class Fluent::Sqlite3Output < Fluent::BufferedOutput
   end
 
   def shutdown
-    @client.close
     super
   end
 end

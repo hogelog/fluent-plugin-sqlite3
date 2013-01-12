@@ -38,5 +38,13 @@ class Sqlite3OutputTest < Test::Unit::TestCase
     $driver.emit({"number"=>20, "message"=>"hi!"}, time)
 
     $driver.run
+    SQLite3::Database.new($dbname){|db|
+      db.execute("SELECT * FROM log WHERE id = 2;"){|row|
+        assert_equal row[0], 2
+        assert_equal row[1], "test"
+        assert_equal row[3], 20
+        assert_equal row[4], "hi!"
+      }
+    }
   end
 end
