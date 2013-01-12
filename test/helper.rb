@@ -1,5 +1,9 @@
 require 'rubygems'
 require 'bundler'
+
+require "minitest/reporters"
+MiniTest::Reporters.use!
+
 begin
   Bundler.setup(:default, :development)
 rescue Bundler::BundlerError => e

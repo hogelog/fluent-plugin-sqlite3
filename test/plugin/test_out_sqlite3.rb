@@ -33,18 +33,29 @@ class Sqlite3OutputTest < Test::Unit::TestCase
   def test_emit
     $driver
 
-    time = Time.parse("2011-01-02 13:14:15 UTC").to_i
-    $driver.emit({"number"=>10, "message"=>"hello"}, time)
-    $driver.emit({"number"=>20, "message"=>"hi!"}, time)
+    values = [
+        [1, 10, "hello"],
+        [2, 20, "hi!"],
+        [3, 30, "too bad"],
+    ]
 
+    time = Time.parse("2011-01-02 13:14:15 UTC").to_i
+    values.each do|value|
+      id, number, message = value
+      $driver.emit({"number"=>number, "message"=>message}, time)
+    end
     $driver.run
+
     SQLite3::Database.new($dbname){|db|
-      db.execute("SELECT * FROM log WHERE id = 2;"){|row|
-        assert_equal row[0], 2
-        assert_equal row[1], "test"
-        assert_equal row[3], 20
-        assert_equal row[4], "hi!"
-      }
+      values.each do|value|
+        id, number, message = value
+        db.execute("SELECT * FROM log WHERE id = ?;", id){|row|
+          assert_equal row[0], id
+          assert_equal row[1], "test"
+          assert_equal row[3], number
+          assert_equal row[4], message
+        }
+      end
     }
   end
 end
